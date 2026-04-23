@@ -37,11 +37,22 @@ function Invoke-MeshCli {
         [switch]$ScanOnly
     )
 
-    if ($ScanOnly) {
-        return ((& meshcli @MeshCliBaseArgs @MeshCliScanArgs @Arguments 2>&1 | ForEach-Object { $_.ToString() }) -join "`n")
-    }
+    $oldPref = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
 
-    return ((& meshcli @MeshCliBaseArgs @MeshCliConnectArgs @Arguments 2>&1 | ForEach-Object { $_.ToString() }) -join "`n")
+    try {
+        if ($ScanOnly) {
+            $output = & meshcli @MeshCliBaseArgs @MeshCliScanArgs @Arguments 2>&1
+        }
+        else {
+            $output = & meshcli @MeshCliBaseArgs @MeshCliConnectArgs @Arguments 2>&1
+        }
+
+        return ($output | ForEach-Object { $_.ToString() }) -join "`n"
+    }
+    finally {
+        $ErrorActionPreference = $oldPref
+    }
 }
 
 function Get-JsonBlock {
@@ -233,9 +244,9 @@ if (-not (Test-Path -LiteralPath $ResolvedPathFile)) {
 $ResolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 New-Item -ItemType Directory -Path $ResolvedOutputDir -Force | Out-Null
 
-$Paths = Get-Content -LiteralPath $ResolvedPathFile |
+$Paths = @(Get-Content -LiteralPath $ResolvedPathFile |
     ForEach-Object { ($_ -replace '\s*#.*$', '').Trim() } |
-    Where-Object { $_ }
+    Where-Object { $_ })
 
 if ($Paths.Count -eq 0) {
     throw "No valid paths found in $ResolvedPathFile"
