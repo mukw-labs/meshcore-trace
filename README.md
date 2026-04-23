@@ -31,6 +31,35 @@ This is useful for comparing path reliability, spotting unstable hops, and colle
   - Linux with `bash`, `sed`, `grep`, `awk`
   - Windows with PowerShell 5.1 or newer
 
+## Connection Selection
+
+By default, the scripts do not specify a transport. In that mode, `meshcli` will try the first available BLE MeshCore device.
+
+The scripts also support explicit connection selection:
+
+- BLE list/scan:
+  - Bash: `./meshcore-trace.sh --list-devices`
+  - PowerShell: `.\meshcore-trace.ps1 -ListDevices`
+- BLE device filter:
+  - Bash: `./meshcore-trace.sh --device-filter Mukw`
+  - PowerShell: `.\meshcore-trace.ps1 -DeviceFilter Mukw`
+- BLE address or named device:
+  - Bash: `./meshcore-trace.sh --address D0:B9:97:F7:AC:97`
+  - PowerShell: `.\meshcore-trace.ps1 -Address D0:B9:97:F7:AC:97`
+- TCP/Wi-Fi:
+  - Bash: `./meshcore-trace.sh --tcp-host 192.168.1.50 --tcp-port 5000`
+  - PowerShell: `.\meshcore-trace.ps1 -TcpHost 192.168.1.50 -TcpPort 5000`
+- Serial:
+  - Bash: `./meshcore-trace.sh --serial-port /dev/ttyUSB0 --baudrate 115200`
+  - PowerShell: `.\meshcore-trace.ps1 -SerialPort COM3 -Baudrate 115200`
+
+Notes:
+
+- `--list-devices` / `-ListDevices` is useful before a run because it shows the available BLE and serial devices.
+- `--device-filter` / `-DeviceFilter` and `--address` / `-Address` are BLE-focused options.
+- `--tcp-host` / `-TcpHost` is for TCP/IP devices, with `--tcp-port` / `-TcpPort` defaulting to MeshCore's normal port if not overridden.
+- `--serial-port` / `-SerialPort` is for serial devices, and `--baudrate` / `-Baudrate` is optional.
+
 ## Linux Setup
 
 ### Install MeshCore CLI
@@ -53,6 +82,14 @@ Before running the script, confirm that `meshcli` can reach your companion:
 
 ```bash
 meshcli -c off infos
+```
+
+If you are using a specific transport or device, confirm with the matching `meshcli` flags first. Examples:
+
+```bash
+meshcli -c off -a D0:B9:97:F7:AC:97 infos
+meshcli -c off -t 192.168.1.50 -p 5000 infos
+meshcli -c off -s /dev/ttyUSB0 infos
 ```
 
 If that command cannot find or connect to your companion, fix that first before running the trace script.
@@ -129,6 +166,14 @@ Before running the script, confirm that `meshcli` can reach your companion:
 
 ```powershell
 meshcli -c off infos
+```
+
+If you are using a specific transport or device, confirm with the matching `meshcli` flags first. Examples:
+
+```powershell
+meshcli -c off -a D0:B9:97:F7:AC:97 infos
+meshcli -c off -t 192.168.1.50 -p 5000 infos
+meshcli -c off -s COM3 infos
 ```
 
 If that command cannot find or connect to your companion, fix that first before running the trace script.
