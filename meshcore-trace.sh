@@ -5,11 +5,21 @@ set -o pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 MESHCLI_BASE_ARGS=(-c off)
+MESHCLI_CONNECT_ARGS=()
+MESHCLI_SCAN_ARGS=()
 
 PATH_FILE="$SCRIPT_DIR/paths.txt"
 RUNS=10
 DELAY=2
 OUTPUT_DIR="$SCRIPT_DIR"
+LIST_DEVICES=0
+TCP_HOST=""
+SERIAL_PORT=""
+TCP_PORT_SET=0
+BAUDRATE_SET=0
+ADDRESS_SET=0
+DEVICE_FILTER_SET=0
+PAIR_SET=0
 COMPANION_RADIO_FREQ=""
 COMPANION_RADIO_BW=""
 COMPANION_RADIO_SF=""
@@ -24,6 +34,16 @@ Options:
   --runs <number>      Number of trace attempts per path. Default: 10
   --delay <seconds>    Delay between runs. Default: 2
   --output-dir <dir>   Directory for CSV and summary files. Default: current directory
+  --list-devices       Run meshcli -l and exit
+  --scan-timeout <s>   BLE scan timeout for --list-devices. Maps to meshcli -T
+  --address <value>    BLE address or device name. Maps to meshcli -a
+  --device-filter <v>  Filter MeshCore devices by name/address. Maps to meshcli -d
+  --tcp-host <host>    Connect over TCP/IP. Maps to meshcli -t
+  --tcp-port <port>    TCP port for --tcp-host. Maps to meshcli -p
+  --serial-port <p>    Connect over serial. Maps to meshcli -s
+  --baudrate <rate>    Baudrate for --serial-port. Maps to meshcli -b
+  --pair               Force OS pairing for BLE. Maps to meshcli -P
+  --debug              Enable meshcli debug output. Maps to meshcli -D
   --help               Show this help text
 EOF
 }
@@ -46,6 +66,54 @@ while [ $# -gt 0 ]; do
             OUTPUT_DIR="$2"
             shift 2
             ;;
+        --list-devices)
+            LIST_DEVICES=1
+            shift
+            ;;
+        --scan-timeout)
+            MESHCLI_SCAN_ARGS+=("-T" "$2")
+            shift 2
+            ;;
+        --address)
+            MESHCLI_CONNECT_ARGS+=("-a" "$2")
+            ADDRESS_SET=1
+            shift 2
+            ;;
+        --device-filter)
+            MESHCLI_SCAN_ARGS+=("-d" "$2")
+            MESHCLI_CONNECT_ARGS+=("-d" "$2")
+            DEVICE_FILTER_SET=1
+            shift 2
+            ;;
+        --tcp-host)
+            MESHCLI_CONNECT_ARGS+=("-t" "$2")
+            TCP_HOST="$2"
+            shift 2
+            ;;
+        --tcp-port)
+            MESHCLI_CONNECT_ARGS+=("-p" "$2")
+            TCP_PORT_SET=1
+            shift 2
+            ;;
+        --serial-port)
+            MESHCLI_CONNECT_ARGS+=("-s" "$2")
+            SERIAL_PORT="$2"
+            shift 2
+            ;;
+        --baudrate)
+            MESHCLI_CONNECT_ARGS+=("-b" "$2")
+            BAUDRATE_SET=1
+            shift 2
+            ;;
+        --pair)
+            MESHCLI_CONNECT_ARGS+=("-P")
+            PAIR_SET=1
+            shift
+            ;;
+        --debug)
+            MESHCLI_BASE_ARGS+=("-D")
+            shift
+            ;;
         --help)
             usage
             exit 0
@@ -61,6 +129,36 @@ done
 if ! command -v meshcli >/dev/null 2>&1; then
     echo "meshcli was not found in PATH." >&2
     exit 1
+fi
+
+if [ -n "$TCP_HOST" ] && [ -n "$SERIAL_PORT" ]; then
+    echo "Choose only one transport: --tcp-host or --serial-port." >&2
+    exit 1
+fi
+
+if [ "$TCP_PORT_SET" -eq 1 ] && [ -z "$TCP_HOST" ]; then
+    echo "--tcp-port requires --tcp-host." >&2
+    exit 1
+fi
+
+if [ "$BAUDRATE_SET" -eq 1 ] && [ -z "$SERIAL_PORT" ]; then
+    echo "--baudrate requires --serial-port." >&2
+    exit 1
+fi
+
+if [ -n "$TCP_HOST" ] && { [ "$ADDRESS_SET" -eq 1 ] || [ "$PAIR_SET" -eq 1 ] || [ "$DEVICE_FILTER_SET" -eq 1 ]; }; then
+    echo "BLE-specific options (--address, --device-filter, --pair) cannot be combined with --tcp-host." >&2
+    exit 1
+fi
+
+if [ -n "$SERIAL_PORT" ] && { [ "$ADDRESS_SET" -eq 1 ] || [ "$PAIR_SET" -eq 1 ] || [ "$DEVICE_FILTER_SET" -eq 1 ]; }; then
+    echo "BLE-specific options (--address, --device-filter, --pair) cannot be combined with --serial-port." >&2
+    exit 1
+fi
+
+if [ "$LIST_DEVICES" -eq 1 ]; then
+    meshcli "${MESHCLI_BASE_ARGS[@]}" "${MESHCLI_SCAN_ARGS[@]}" -l
+    exit $?
 fi
 
 if [ ! -f "$PATH_FILE" ]; then
@@ -84,7 +182,7 @@ clean_output() {
 }
 
 run_meshcli() {
-    meshcli "${MESHCLI_BASE_ARGS[@]}" "$@"
+    meshcli "${MESHCLI_BASE_ARGS[@]}" "${MESHCLI_CONNECT_ARGS[@]}" "$@"
 }
 
 extract_json_block() {

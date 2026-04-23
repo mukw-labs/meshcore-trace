@@ -2,12 +2,24 @@ param(
     [string]$PathFile = (Join-Path $PSScriptRoot "paths.txt"),
     [int]$Runs = 10,
     [int]$DelaySeconds = 2,
-    [string]$OutputDir = $PSScriptRoot
+    [string]$OutputDir = $PSScriptRoot,
+    [switch]$ListDevices,
+    [int]$ScanTimeout,
+    [string]$Address,
+    [string]$DeviceFilter,
+    [string]$TcpHost,
+    [int]$TcpPort,
+    [string]$SerialPort,
+    [int]$Baudrate,
+    [switch]$Pair,
+    [switch]$Debug
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $MeshCliBaseArgs = @("-c", "off")
+$MeshCliConnectArgs = @()
+$MeshCliScanArgs = @()
 $CompanionRadioFreq = ""
 $CompanionRadioBw = ""
 $CompanionRadioSf = ""
@@ -20,9 +32,16 @@ function Get-CleanOutput {
 }
 
 function Invoke-MeshCli {
-    param([string[]]$Arguments)
+    param(
+        [string[]]$Arguments,
+        [switch]$ScanOnly
+    )
 
-    return ((& meshcli @MeshCliBaseArgs @Arguments 2>&1 | ForEach-Object { $_.ToString() }) -join "`n")
+    if ($ScanOnly) {
+        return ((& meshcli @MeshCliBaseArgs @MeshCliScanArgs @Arguments 2>&1 | ForEach-Object { $_.ToString() }) -join "`n")
+    }
+
+    return ((& meshcli @MeshCliBaseArgs @MeshCliConnectArgs @Arguments 2>&1 | ForEach-Object { $_.ToString() }) -join "`n")
 }
 
 function Get-JsonBlock {
@@ -141,6 +160,69 @@ function Parse-Result {
 
 if (-not (Get-Command meshcli -ErrorAction SilentlyContinue)) {
     throw "meshcli was not found in PATH."
+}
+
+if ($Debug) {
+    $MeshCliBaseArgs += "-D"
+}
+
+if ($ScanTimeout) {
+    $MeshCliScanArgs += @("-T", [string]$ScanTimeout)
+}
+
+if ($Address) {
+    $MeshCliConnectArgs += @("-a", $Address)
+}
+
+if ($DeviceFilter) {
+    $MeshCliScanArgs += @("-d", $DeviceFilter)
+    $MeshCliConnectArgs += @("-d", $DeviceFilter)
+}
+
+if ($TcpHost) {
+    $MeshCliConnectArgs += @("-t", $TcpHost)
+}
+
+if ($PSBoundParameters.ContainsKey("TcpPort")) {
+    $MeshCliConnectArgs += @("-p", [string]$TcpPort)
+}
+
+if ($SerialPort) {
+    $MeshCliConnectArgs += @("-s", $SerialPort)
+}
+
+if ($PSBoundParameters.ContainsKey("Baudrate")) {
+    $MeshCliConnectArgs += @("-b", [string]$Baudrate)
+}
+
+if ($Pair) {
+    $MeshCliConnectArgs += "-P"
+}
+
+if ($TcpHost -and $SerialPort) {
+    throw "Choose only one transport: -TcpHost or -SerialPort."
+}
+
+if ($PSBoundParameters.ContainsKey("TcpPort") -and -not $TcpHost) {
+    throw "-TcpPort requires -TcpHost."
+}
+
+if ($PSBoundParameters.ContainsKey("Baudrate") -and -not $SerialPort) {
+    throw "-Baudrate requires -SerialPort."
+}
+
+if ($TcpHost -and ($Address -or $DeviceFilter -or $Pair)) {
+    throw "BLE-specific options (-Address, -DeviceFilter, -Pair) cannot be combined with -TcpHost."
+}
+
+if ($SerialPort -and ($Address -or $DeviceFilter -or $Pair)) {
+    throw "BLE-specific options (-Address, -DeviceFilter, -Pair) cannot be combined with -SerialPort."
+}
+
+if ($ListDevices) {
+    $ListOutput = Invoke-MeshCli -Arguments @("-l") -ScanOnly
+    Write-Host $ListOutput
+    exit 0
 }
 
 $ResolvedPathFile = [System.IO.Path]::GetFullPath($PathFile)
