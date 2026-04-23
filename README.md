@@ -7,7 +7,6 @@ Cross-platform scripts for running repeated `meshcli trace` checks against a lis
 - `meshcore-trace.sh` for Linux shells
 - `meshcore-trace.ps1` for Windows PowerShell
 - `paths.example.txt` as the template for your path list
-- Timestamped output files written to the project root by default
 
 ## What The Scripts Do
 
@@ -47,6 +46,16 @@ If `pipx` is not available in the current shell after `ensurepath`, open a new t
 ```bash
 pipx install meshcore-cli
 ```
+
+### Confirm Companion Connection
+
+Before running the script, confirm that `meshcli` can reach your companion:
+
+```bash
+meshcli -c off infos
+```
+
+If that command cannot find or connect to your companion, fix that first before running the trace script.
 
 ### Clone This Repository
 
@@ -97,12 +106,7 @@ Run with custom settings:
 ./meshcore-trace.sh --runs 20 --delay 3 --path-file ./paths.txt --output-dir .
 ```
 
-### Troubleshooting
 
-If `meshcli` installation or BLE setup gives you trouble, check the upstream MeshCore CLI documentation:
-
-- MeshCore CLI repository: https://github.com/meshcore-dev/meshcore-cli
-- MeshCore CLI README: https://github.com/meshcore-dev/meshcore-cli/blob/main/README.md
 
 ## Windows Setup
 
@@ -119,6 +123,15 @@ If `pipx` is not available in the current shell after `ensurepath`, open a new P
 ```powershell
 pipx install meshcore-cli
 ```
+### Confirm Companion Connection
+
+Before running the script, confirm that `meshcli` can reach your companion:
+
+```powershell
+meshcli -c off infos
+```
+
+If that command cannot find or connect to your companion, fix that first before running the trace script.
 
 ### Clone This Repository
 
@@ -150,13 +163,6 @@ powershell -ExecutionPolicy Bypass -File .\meshcore-trace.ps1 -Runs 20 -DelaySec
 ```
 
 If PowerShell blocks script execution in your environment, open a shell with the appropriate execution policy for your machine or run the command above with `-ExecutionPolicy Bypass`.
-
-### Troubleshooting
-
-If `meshcli` installation or device setup gives you trouble, check the upstream MeshCore CLI documentation:
-
-- MeshCore CLI repository: https://github.com/meshcore-dev/meshcore-cli
-- MeshCore CLI README: https://github.com/meshcore-dev/meshcore-cli/blob/main/README.md
 
 ## Output Files
 
@@ -243,3 +249,10 @@ Formatting requirements:
 - Keep the answer concise and analytical
 - Do not speculate about RF causes, firmware issues, hardware faults, or environmental reasons unless they are directly stated in the data
 ```
+
+## Troubleshooting
+
+If `meshcli` installation, BLE setup, or companion connection gives you trouble, check the upstream MeshCore CLI documentation:
+
+- MeshCore CLI repository: https://github.com/meshcore-dev/meshcore-cli
+- MeshCore CLI README: https://github.com/meshcore-dev/meshcore-cli/blob/main/README.md
